@@ -1,80 +1,55 @@
 package main
 
 import (
-	"fmt"
-	"html/template"
-	"net/http"
-	"net/http/httputil"
-	"os"
-	"time"
+    "fmt"
+    "net/http"
+    "os"
+    "time"
 
-	"github.com/gorilla/handlers"
-	"github.com/gorilla/mux"
+    "github.com/gorilla/handlers"
+    "github.com/gorilla/mux"
 )
 
+var started = time.Now()
+
+// used to dump headers for debugging
 func indexHandler(w http.ResponseWriter, r *http.Request) {
 
-	// disable cache
-	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
-	w.Header().Set("Pragma", "no-cache")
-	w.Header().Set("Expires", "0")
+    startTime := time.Now()
 
-	// set hostname (used for demo)
-	hostname, err := os.Hostname()
-	if err != nil {
-		fmt.Fprint(w, "Error:", err)
-	}
+    // disable cache
+    w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+    w.Header().Set("Pragma", "no-cache")
+    w.Header().Set("Expires", "0")
 
-	data := struct {
-		Title    string
-		Hostname string
-	}{
-		Title:    "Kubernetes Pod Load Balancer Demo (refresh page)",
-		Hostname: hostname,
-	}
+    // set hostname (used for demo)
+    hostname, err := os.Hostname()
+    if err != nil {
+        fmt.Fprint(w, "Error:", err)
+    }
 
-	t, err := template.New("index.html").ParseFiles("index.html")
-
-	if err != nil {
-		fmt.Fprint(w, "Error:", err)
-		fmt.Println("Error:", err)
-		return
-	}
-
-	err = t.ExecuteTemplate(w, "index.html", data)
-	if err != nil {
-		fmt.Fprint(w, "Error:", err)
-		fmt.Println("Error:", err)
-	}
+    fmt.Fprintf(w, "Service/Pod Info: %s\n\n", os.Getenv("ENV"))
+    fmt.Fprintf(w, "Served-By: %v\n", hostname)
+    fmt.Fprintf(w, "Serving-Time: %s\n", time.Now().Sub(startTime))
+    
+    fmt.Fprintf(w, "\nEnvironment variables: %s\n\n", os.Getenv("ENV"))
+    fmt.Fprintf(w, "ENV: %s\n", os.Getenv("ENV"))
+    fmt.Fprintf(w, "DB_HOST: %s\n", os.Getenv("DB_HOST"))
+    fmt.Fprintf(w, "DB_PORT: %s\n", os.Getenv("DB_PORT"))
+    fmt.Fprintf(w, "DB_USER: %s\n", os.Getenv("DB_USER"))
+    fmt.Fprintf(w, "DB_PASSWORD: %s\n", os.Getenv("DB_PASSWORD"))
+    return
 
 }
 
-// used to dump headers for debugging
-func debugHandler(w http.ResponseWriter, r *http.Request) {
-
-	startTime := time.Now()
-
-	// disable cache
-	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
-	w.Header().Set("Pragma", "no-cache")
-	w.Header().Set("Expires", "0")
-
-	// set hostname (used for demo)
-	hostname, err := os.Hostname()
-	if err != nil {
-		fmt.Fprint(w, "Error:", err)
-	}
-
-	// dump headers
-	requestDump, err := httputil.DumpRequest(r, true)
-	if err != nil {
-		fmt.Println(err)
-	}
-	fmt.Fprintf(w, "%v", string(requestDump))
-	fmt.Fprintf(w, "Served-By: %v\n", hostname)
-	fmt.Fprintf(w, "Serving-Time: %s", time.Now().Sub(startTime))
-	return
-
+func healthzHandler(w http.ResponseWriter, r *http.Request) {
+    duration := time.Now().Sub(started)
+    if duration.Seconds() > 10 {
+        http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+    } else {
+        fmt.Fprintf(w, "ok: %v", duration.Seconds())
+    }
+    return
 }
 
 // mux
@@ -82,11 +57,11 @@ var router = mux.NewRouter()
 
 func main() {
 
-	router.HandleFunc("/", indexHandler)
-	router.HandleFunc("/debug", debugHandler)
-	http.Handle("/", router)
+    router.HandleFunc("/", indexHandler)
+    router.HandleFunc("/healthz", healthzHandler)
+    http.Handle("/", router)
 
-	fmt.Println("Listening on port 5005...")
-	http.ListenAndServe(":5005", handlers.CompressHandler(router))
+    fmt.Println("Listening on port 5005...")
+    http.ListenAndServe(":5005", handlers.CompressHandler(router))
 
 }
