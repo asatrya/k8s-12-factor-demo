@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: demo-configmap
+  labels:
+    app: demo-app
+data:
+  ENV: "prod"
+  DB_HOST: mydbhost
+  DB_PORT: "3306"

@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demo-app
+spec:
+  selector:
+    matchLabels:
+      app: demo-app
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: demo-app
+    spec:
+      containers:
+        - name: demo-app
+          image: asatrya/alpine-k8s-pod-lb-demo
+          env:
+            - name: ENV
+              valueFrom:
+                  configMapKeyRef:
+                    name: demo-configmap
+                    key: ENV
+            - name: DB_HOST
+              valueFrom:
+                  configMapKeyRef:
+                    name: demo-configmap
+                    key: DB_HOST
+            - name: DB_PORT
+              valueFrom:
+                  configMapKeyRef:
+                    name: demo-configmap
+                    key: DB_PORT
+            - name: DB_USER
+              valueFrom:
+                  secretKeyRef:
+                    name: demo-secret
+                    key: DB_USER_BASE64
+            - name: DB_PASSWORD
+              valueFrom:
+                  secretKeyRef:
+                    name: demo-secret
+                    key: DB_PASSWORD_BASE64
+          resources:
+            limits:
+              memory: "128Mi"
+              cpu: "100m"
+          ports:
+            - containerPort: 5005
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 5005
+              httpHeaders:
+                - name: Custom-Header
+                  value: Awesome
+            initialDelaySeconds: 60
+            periodSeconds: 10
